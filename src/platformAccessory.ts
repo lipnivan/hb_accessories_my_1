@@ -2,6 +2,8 @@ import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallb
 
 import { ExampleHomebridgePlatform } from './platform';
 
+import http from 'http';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -16,7 +18,7 @@ export class ExamplePlatformAccessory {
    */
   private exampleStates = {
     On: false,
-    Brightness: 100,
+    //Brightness: 100,
   }
 
   constructor(
@@ -26,9 +28,9 @@ export class ExamplePlatformAccessory {
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Lipi')
+      .setCharacteristic(this.platform.Characteristic.Model, 'switch 1.0')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, '123456');
 
     // get the LightBulb service if it exists, otherwise create a new LightBulb service
     // you can create multiple services for each accessory
@@ -36,7 +38,7 @@ export class ExamplePlatformAccessory {
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/Lightbulb
@@ -46,9 +48,9 @@ export class ExamplePlatformAccessory {
       .on('set', this.setOn.bind(this))                // SET - bind to the `setOn` method below
       .on('get', this.getOn.bind(this));               // GET - bind to the `getOn` method below
 
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .on('set', this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
+    // // register handlers for the Brightness Characteristic
+    // this.service.getCharacteristic(this.platform.Characteristic.Brightness)
+    //   .on('set', this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
 
 
     /**
@@ -63,11 +65,11 @@ export class ExamplePlatformAccessory {
      */
 
     // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
+    //const motionSensorOneService = this.accessory.getService('Motion Sensor One Name') ||
+    //  this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
 
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
-      this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
+    //const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name') ||
+    //  this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
 
     /**
      * Updating characteristics values asynchronously.
@@ -98,10 +100,39 @@ export class ExamplePlatformAccessory {
    */
   setOn(value: CharacteristicValue, callback: CharacteristicSetCallback) {
 
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+    const jsonObject = JSON.stringify({
+      'targetState': 'on',
+    });
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+    // prepare the header
+    const postheaders = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(jsonObject, 'utf8'),
+    };
+
+    const path2 = this.accessory.context.device.changeStateUrl.slice(25);
+   
+    // the post options
+    const optionspost = {
+      host: this.accessory.context.device.ip,
+      port: this.accessory.context.device.port,
+      path: path2,
+      method: 'POST',
+      headers: postheaders,
+    };
+
+    const reqPost = http.request(optionspost, (res) => {
+
+      res.on('data', (d) => {
+        process.stdout.write(d);
+      });
+    });
+    
+    reqPost.write(jsonObject);
+    reqPost.end();
+    reqPost.on('error', (e) => {
+      this.platform.log.debug('error ->', e);
+    });
 
     // you must call the callback function
     callback(null);
@@ -123,15 +154,27 @@ export class ExamplePlatformAccessory {
   getOn(callback: CharacteristicGetCallback) {
 
     // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
+    let isTrueSet = false;
 
-    this.platform.log.debug('Get Characteristic On ->', isOn);
 
-    // you must call the callback function
-    // the first argument should be null if there were no errors
-    // the second argument should be the value to return
-    callback(null, isOn);
+    http.get(this.accessory.context.device.checkStateUrl, (resp) => {
+
+      resp.on('data', (chunk) => {
+        isTrueSet = (chunk.toString('utf8') === 'true');
+      });
+
+      resp.on('end', () => {
+        callback(null, isTrueSet);
+      });
+
+
+    }).on('error', (err) => {
+      this.platform.log.debug('error ->', err.message);
+      callback(null, isTrueSet);
+    });
+   
   }
+
 
   /**
    * Handle "SET" requests from HomeKit
@@ -140,7 +183,7 @@ export class ExamplePlatformAccessory {
   setBrightness(value: CharacteristicValue, callback: CharacteristicSetCallback) {
 
     // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
+    //this.exampleStates.Brightness = value as number;
 
     this.platform.log.debug('Set Characteristic Brightness -> ', value);
 
