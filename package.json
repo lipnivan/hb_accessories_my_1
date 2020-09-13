@@ -1,6 +1,6 @@
 {
-  "private": true,
-  "displayName": "Plugin Name",
+  "private": false,
+  "displayName": "HTTP REST for DIY",
   "name": "homebridge-accessories-httprest",
   "version": "1.0.0",
   "description": "Rest API from my DIY things to Homebridge",
