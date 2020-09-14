@@ -7,3 +7,11 @@
 
 
 # My Homebridge Platform Plugin 1
+
+ENG
+
+Description under construction
+
+RUS
+
+Описание находится в разработке
