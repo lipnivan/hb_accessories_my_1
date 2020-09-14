@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "HTTP REST for DIY",
   "name": "homebridge-accessories-httprest",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Rest API from my DIY things to Homebridge",
   "license": "Apache-2.0",
   "repository": {
